@@ -33,4 +33,3 @@
 *.elf
 
 .vscode
-tests/*

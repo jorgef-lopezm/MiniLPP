@@ -1,0 +1,26 @@
+tipo Number es entero
+tipo Char es caracter
+
+Entero a, b
+Entero x, _y, z
+
+Funcion gcd(Entero a, Entero b): Entero
+Inicio
+    Si b = 0 Entonces
+        Retorne a
+    Sino si 18 = 19 entonces
+    
+        Retorne gcd(b, a mod b)
+
+    Fin Si
+    fin si
+Fin
+
+Inicio
+    a <- 10
+    b <- 20
+    x <- a
+    _y <- b
+    z <- gcd(x, _y)
+    Escriba z
+Fin
