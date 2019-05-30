@@ -74,7 +74,7 @@ int Lexer::getNextToken() {
             ":"                                     { return makeToken(':'); }
             "("                                     { return makeToken('('); }
             ")"                                     { return makeToken(')'); }
-            "<-"                                    { return makeToken(OP_ASSIGN); }
+            "<-"                                    { return makeToken(token::OP_ASSIGN); }
             "+"                                     { return makeToken('+'); }
             "-"                                     { return makeToken('-'); }
             "*"                                     { return makeToken('*'); }
@@ -82,58 +82,58 @@ int Lexer::getNextToken() {
             "<"                                     { return makeToken('<'); }
             ">"                                     { return makeToken('>'); }
             "="                                     { return makeToken('='); }
-            "<>"                                    { return makeToken(OP_NOT_EQ); }
-            "<="                                    { return makeToken(OP_LESS_EQ); }
-            ">="                                    { return makeToken(OP_GREATER_EQ); }
+            "<>"                                    { return makeToken(token::OP_NOT_EQ); }
+            "<="                                    { return makeToken(token::OP_LESS_EQ); }
+            ">="                                    { return makeToken(token::OP_GREATER_EQ); }
             "\""                                    { goto str_constant; }
             "'"                                     { goto ch_constant; }
-            'abrir'                                 { return makeToken(KW_ABRIR); }
-            'archivo'                               { return makeToken(KW_ARCHIVO); }                                                       
-            'arreglo'                               { return makeToken(KW_ARREGLO); }                                                       
-            'booleano'                              { return makeToken(KW_BOOLEANO); }                                                       
-            'cadena'                                { return makeToken(KW_CADENA); }                                                       
-            'caracter'                              { return makeToken(KW_CARACTER); }                                                     
-            'caso'                                  { return makeToken(KW_CASO); }                                                 
-            'cerrar'                                { return makeToken(KW_CERRAR); }                                                                                         
-            'como'                                  { return makeToken(KW_COMO); }                                                                                     
-            'de'                                    { return makeToken(KW_DE); }                                                                                     
-            'div'                                   { return makeToken(KW_DIV); }                                                                                     
-            'entero'                                { return makeToken(KW_ENTERO); }                                                     
-            'entonces'                              { return makeToken(KW_ENTONCES); }                                 
-            'es'                                    { return makeToken(KW_ES); }                             
-            'escriba'                               { return makeToken(KW_ESCRIBA); }                                 
-            'escribir'                              { return makeToken(KW_ESCRIBIR); }                                 
-            'escritura'                             { return makeToken(KW_ESCRITURA); }                                 
-            'falso'                                 { return makeToken(KW_FALSO); }                                                 
-            'fin'                                   { return makeToken(KW_FIN); }                                                 
-            'final'                                 { return makeToken(KW_FINAL); }                                                 
-            'funcion'                               { return makeToken(KW_FUNCION); }                                                     
-            'haga'                                  { return makeToken(KW_HAGA); }                                                 
-            'hasta'                                 { return makeToken(KW_HASTA); }                                     
-            'inicio'                                { return makeToken(KW_INICIO); }                                         
-            'lea'                                   { return makeToken(KW_LEA); }                                     
-            'lectura'                               { return makeToken(KW_LECTURA); }                                         
-            'leer'                                  { return makeToken(KW_LEER); }                                     
-            'llamar'                                { return makeToken(KW_LLAMAR); }                 
-            'mientras'                              { return makeToken(KW_MIENTRAS); }                                                     
-            'mod'                                   { return makeToken(KW_MOD); }                                                 
-            'no'                                    { return makeToken(KW_NO); }                                                 
-            'o'                                     { return makeToken(KW_O); }                                             
-            'para'                                  { return makeToken(KW_PARA); }                                                 
-            'procedimiento'                         { return makeToken(KW_PROCEDIMIENTO); }                                                                 
-            'real'                                  { return makeToken(KW_REAL); }                                                         
-            'registro'                              { return makeToken(KW_REGISTRO); }                                                             
-            'repita'                                { return makeToken(KW_REPITA); }                                                             
-            'retorne'                               { return makeToken(KW_RETORNE); }                                                             
-            'secuencial'                            { return makeToken(KW_SECUENCIAL); }                                                 
-            'si'                                    { return makeToken(KW_SI); }                                         
-            'sino'                                  { return makeToken(KW_SINO); }                                                                                                                 
-            'tipo'                                  { return makeToken(KW_TIPO); }                                                                                                                 
-            'var'                                   { return makeToken(KW_VAR); }                                                                                                                 
-            'verdadero'                             { return makeToken(KW_VERDADERO); }                                                                                         
-            'y'                                     { return makeToken(KW_Y); }
-            ids                                     { return makeToken(IDENTIFIER); }
-            num | hex | bin                         { return makeToken(NUMBER); }
+            'abrir'                                 { return makeToken(token::KW_ABRIR); }
+            'archivo'                               { return makeToken(token::KW_ARCHIVO); }                                                       
+            'arreglo'                               { return makeToken(token::KW_ARREGLO); }                                                       
+            'booleano'                              { return makeToken(token::KW_BOOLEANO); }                                                       
+            'cadena'                                { return makeToken(token::KW_CADENA); }                                                       
+            'caracter'                              { return makeToken(token::KW_CARACTER); }                                                     
+            'caso'                                  { return makeToken(token::KW_CASO); }                                                 
+            'cerrar'                                { return makeToken(token::KW_CERRAR); }                                                                                         
+            'como'                                  { return makeToken(token::KW_COMO); }                                                                                     
+            'de'                                    { return makeToken(token::KW_DE); }                                                                                     
+            'div'                                   { return makeToken(token::KW_DIV); }                                                                                     
+            'entero'                                { return makeToken(token::KW_ENTERO); }                                                     
+            'entonces'                              { return makeToken(token::KW_ENTONCES); }                                 
+            'es'                                    { return makeToken(token::KW_ES); }                             
+            'escriba'                               { return makeToken(token::KW_ESCRIBA); }                                 
+            'escribir'                              { return makeToken(token::KW_ESCRIBIR); }                                 
+            'escritura'                             { return makeToken(token::KW_ESCRITURA); }                                 
+            'falso'                                 { return makeToken(token::KW_FALSO); }                                                 
+            'fin'                                   { return makeToken(token::KW_FIN); }                                                 
+            'final'                                 { return makeToken(token::KW_FINAL); }                                                 
+            'funcion'                               { return makeToken(token::KW_FUNCION); }                                                     
+            'haga'                                  { return makeToken(token::KW_HAGA); }                                                 
+            'hasta'                                 { return makeToken(token::KW_HASTA); }                                     
+            'inicio'                                { return makeToken(token::KW_INICIO); }                                         
+            'lea'                                   { return makeToken(token::KW_LEA); }                                     
+            'lectura'                               { return makeToken(token::KW_LECTURA); }                                         
+            'leer'                                  { return makeToken(token::KW_LEER); }                                     
+            'llamar'                                { return makeToken(token::KW_LLAMAR); }                 
+            'mientras'                              { return makeToken(token::KW_MIENTRAS); }                                                     
+            'mod'                                   { return makeToken(token::KW_MOD); }                                                 
+            'no'                                    { return makeToken(token::KW_NO); }                                                 
+            'o'                                     { return makeToken(token::KW_O); }                                             
+            'para'                                  { return makeToken(token::KW_PARA); }                                                 
+            'procedimiento'                         { return makeToken(token::KW_PROCEDIMIENTO); }                                                                 
+            'real'                                  { return makeToken(token::KW_REAL); }                                                         
+            'registro'                              { return makeToken(token::KW_REGISTRO); }                                                             
+            'repita'                                { return makeToken(token::KW_REPITA); }                                                             
+            'retorne'                               { return makeToken(token::KW_RETORNE); }                                                             
+            'secuencial'                            { return makeToken(token::KW_SECUENCIAL); }                                                 
+            'si'                                    { return makeToken(token::KW_SI); }                                         
+            'sino'                                  { return makeToken(token::KW_SINO); }                                                                                                                 
+            'tipo'                                  { return makeToken(token::KW_TIPO); }                                                                                                                 
+            'var'                                   { return makeToken(token::KW_VAR); }                                                                                                                 
+            'verdadero'                             { return makeToken(token::KW_VERDADERO); }                                                                                         
+            'y'                                     { return makeToken(token::KW_Y); }
+            ids                                     { return makeToken(token::IDENTIFIER); }
+            num | hex | bin                         { return makeToken(token::NUMBER); }
             "//"                                    { goto line_comment; }
             "/*"                                    { goto block_comment; }
             end                                     { return EoF; }                                               
@@ -142,14 +142,14 @@ int Lexer::getNextToken() {
 str_constant:
         /*!re2c
             "\"\""                                  { goto str_constant; }
-            "\""                                    { return makeToken(STRING); }
+            "\""                                    { return makeToken(token::STRING); }
             end                                     { return ERROR; }
             .                                       { goto str_constant; }
         */
 ch_constant:
         /*!re2c
-            "'''"                                   { return makeToken(CHARACTER); }
-            ."'"                                    { return makeToken(CHARACTER); }
+            "'''"                                   { return makeToken(token::CHARACTER); }
+            ."'"                                    { return makeToken(token::CHARACTER); }
             "'"                                     { return ERROR; }
         */
 line_comment:

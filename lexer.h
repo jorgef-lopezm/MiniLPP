@@ -12,6 +12,8 @@
 #define ERROR   -1
 #define EoF     0
 
+using token = Expr::Parser::token;
+
 class Lexer {
 public:
     Lexer(std::istream &in);

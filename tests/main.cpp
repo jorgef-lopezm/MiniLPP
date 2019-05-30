@@ -18,6 +18,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	Lexer lexer(in);
-	Parser parser(lexer);
-	parser.parse();
+	Expr::Parser parser(lexer);
+    parser.parse();
 }

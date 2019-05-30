@@ -1,16 +1,26 @@
-%pure-parser
+%require "3.3.2"
+%language "c++"
+%parse-param { Lexer & lexer }
+%define parse.error verbose
+%define api.value.type variant
+%define api.namespace {Expr}
+%define api.parser.class {Parser}
+
+%code requires{
+    #include <unordered_map>
+    class Lexer;
+}
 
 %{
-    #include "parser.h"
+    #include "lexer.h"
 
-    #define yyparse(x) Parser::parse()
     #define yylex(arg) lexer.getNextToken()
-    #define YYERROR_VERBOSE 1
     
-    void Parser::yyerror(const char *msg) {
-        std::cerr << "Syntax Error:Line:" << lexer.getLineNo() << ":Token: \"" << lexer.getLexeme() << "\": " << msg << std::endl;
-        error = true;
-    }
+	namespace Expr{
+    	void Parser::error(const std::string & msg) {
+    	    std::cerr << "Syntax Error:Line:" << lexer.getLineNo() << ":Token: \"" << lexer.getLexeme() << "\": " << msg << std::endl;
+    	}
+	}
 %}
 
                                     /*---Key Words---*/
