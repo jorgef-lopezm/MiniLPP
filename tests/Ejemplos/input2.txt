@@ -14,9 +14,15 @@ Inicio
     numeros[8] <- 21
     numeros[9] <- 34
     numeros[10] <- 55
-
     Para i <- 1 Hasta 10 Haga
 		Escriba numeros[i]
         Llamar nueva_linea()
-	Fin Para
+	  Fin Para
+    
+    si 10 > 1 entonces
+      escriba "Hola"
+    sino
+      escriba "adios"
+    fin si
+
 Fin

@@ -9,7 +9,6 @@
 #include "tokens.h"
 
 #define SIZE 1024
-#define YYMAXFILL 1
 #define ERROR   -1
 #define EoF     0
 

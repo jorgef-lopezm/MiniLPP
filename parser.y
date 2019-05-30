@@ -13,8 +13,6 @@
     }
 %}
 
-%expect 55
-
                                     /*---Key Words---*/
 %token KW_ABRIR             "abrir"
 %token KW_ARCHIVO           "archivo"
@@ -62,203 +60,205 @@
 %token KW_VERDADERO         "verdadero"
 %token KW_Y                 "y"
                                     /*---Punctuation---*/
-%token OP_ASSIGN OP_EQ OP_NOT_EQ OP_LESS_EQ OP_GREATER_EQ
+%token OP_ASSIGN			"<-"
+%token OP_NOT_EQ			"<>"
+%token OP_LESS_EQ			"<="
+%token OP_GREATER_EQ		">="
                                     /*---Identifier & Constants---*/
-%token STR_CONST CHAR_CONST IDENTIFIER NUM_CONST
+%token STRING CHARACTER IDENTIFIER NUMBER
+									
+									
+									/*---Operations Precedence---*/
+%left '=' "<>" '<' '>' "<=" ">="
+%left '+' "o"
+%left '*' "div" "mod" 'y' 
+%left "no" '-'  
 
 %%
 
-input:	                    program		                    { std::cout << "File Parsed Succesfully" << std::endl; }										
+input:	                    	program																{ std::cout << "File Parsed Succesfully" << std::endl; }										
 ;
 
-program:	                opt-eols
-							opt-subtype-definition-section
-							opt-variable-section
-							opt-subprogram-decl
-							"inicio" opt-eols
-							opt-statement-list
-							"fin" opt-eols											
+program:	              		opt_subtype_definition_section
+								opt_variable_section
+								opt_subprogram_decl
+								"inicio" opt_eols
+								statement_list eols
+								"fin" opt_eols											
 ;
 
-opt-subtype-definition-section: subtype-definition-section eols
+opt_subtype_definition_section: subtype_definition_section eols
                                 |%empty
 ;
 
-subtype-definition-section:	subtype-definition-section eols "tipo" IDENTIFIER "es" type	
-							|"tipo" IDENTIFIER "es" type								
+subtype_definition_section:		subtype_definition_section eols "tipo" IDENTIFIER "es" type
+								|"tipo" IDENTIFIER "es" type		
 ;
 
-opt-variable-section:	    variable-section eols
-                            |%empty
+opt_variable_section:	    	variable_section eols
+                            	|%empty
 ;
 
-variable-section:	        variable-section eols type id-list					
-							|type id-list										
+variable_section:	        	variable_section eols type id_list			
+								|type id_list		
 ;
 
-id-list:					id-list	',' IDENTIFIER									
-							|IDENTIFIER												
+opt_subprogram_decl:			subprogram_decl_list eols
+                            	|%empty
 ;
 
-opt-subprogram-decl:		subprogram-decl-list eols
-                            |%empty
+subprogram_decl_list:			subprogram_decl_list eols subprogram_decl			
+								|subprogram_decl										
 ;
 
-subprogram-decl-list:		subprogram-decl-list eols subprogram-decl			
-							|subprogram-decl										
+subprogram_decl:				"funcion" IDENTIFIER opt_arguments ':' type eols
+								opt_variable_section
+								"inicio" opt_eols
+								statement_list eols
+								"fin"
+								|"procedimiento" IDENTIFIER opt_arguments eols
+								opt_variable_section
+								"inicio" opt_eols
+								statement_list eols
+								"fin"											
 ;
 
-subprogram-decl:			subprogram-header
-							eols
-							opt-variable-section
-							"inicio"
-							opt-eols
-							opt-statement-list
-							"fin"												
+statement_list:					statement_list eols statement
+								|statement
 ;
 
-subprogram-header:	        function-header									
-							|procedure-header								
+statement:						assign
+								|"llamar" IDENTIFIER
+								|"llamar" subprogram_call
+								|"escriba" argument_list
+								|"lea" lvalue_list
+								|if_statement
+								|"mientras" expr opt_eols 
+								"haga" eols
+								statement_list eols
+								"fin" "mientras"
+								|"repita" eols
+								statement_list eols
+								"hasta" expr									
+								|"para" assign "hasta" expr "haga" eols
+								statement_list eols
+								"fin" "para"										
 ;
 
-function-header:			"funcion" IDENTIFIER opt-arguments ':' type				
+opt_eols:                   	eols
+                            	|%empty
 ;
 
-opt-arguments:				'(' argument-decl-list ')'			
-                            |%empty
+eols:	                    	eols '\n'											
+								|'\n'												
 ;
 
-argument-decl-list:	        argument-decl-list ',' type IDENTIFIER					
-							|argument-decl-list ',' "var" type IDENTIFIER				
-							|type IDENTIFIER											
-							|"var" type IDENTIFIER									
+type:                       	"entero"											
+								|"booleano"											
+								|"caracter"											
+								|array-type											
 ;
 
-procedure-header:			"procedimiento" IDENTIFIER opt-arguments 				
+array-type:     	        	"arreglo" '[' NUMBER ']' "de" type				
 ;
 
-opt-statement-list:	        statement-list eols
-                            |%empty
+id_list:						id_list	',' IDENTIFIER									
+								|IDENTIFIER												
 ;
 
-statement-list: 	        statement-list eols statement						
-							|statement											
+opt_arguments:					'(' argument_decl_list ')'			
+                            	|%empty
 ;
 
-statement:					assign												
-							|"llamar" subprogram-call							
-							|"llamar" IDENTIFIER	
-                            |"escriba" argument-list									
-							|"si" expr opt-eols "entonces"
-							opt-eols
-							opt-statement-list
-							else-if
-							else
-							"fin" "si"											
-							|"mientras" expr "haga"
-							opt-eols
-							opt-statement-list
-							"fin" "mientras"									
-							|"para" assign "hasta" expr "haga"
-							opt-eols
-							opt-statement-list
-							"fin" "para"										
-							|"repita"
-							opt-eols
-							opt-statement-list
-							"hasta" expr										
-							|"retorne" expr															
-							|"lea" lvalue										
+argument_decl_list:	        	argument_decl_list ',' type IDENTIFIER					
+								|argument_decl_list ',' "var" type IDENTIFIER				
+								|type IDENTIFIER											
+								|"var" type IDENTIFIER									
 ;
 
-argument-list:	            argument-list ',' expr					
-							|argument-list ',' STR_CONST		
-							|expr												
-							|STR_CONST									
+assign:							lvalue "<-" expr
 ;
 
-else-if:					else-if "sino" "si" expr opt-eols 
-							"entonces" opt-eols
-							opt-statement-list "fin" "si" opt-eols
-							|%empty
+lvalue:	                    	IDENTIFIER												
+								|IDENTIFIER '[' expr ']'									
 ;
 
-else:						"sino" opt-eols statement-list
-							|%empty
+expr:	                    	expr '=' term										
+								|expr "<>" term										
+								|expr '<' term										
+								|expr '>' term										
+								|expr "<=" term										
+								|expr ">=" term
+								|"no" expr
+								|'-' expr								
+								|term												
 ;
 
-assign:	                    lvalue OP_ASSIGN expr									
+term:	                    	term '+' factor										
+								|term '-' factor										
+								|term "o" factor										
+								|factor												
 ;
 
-lvalue:	                    IDENTIFIER												
-							|IDENTIFIER '[' expr ']'									
+factor:							factor '*' exponent									
+								|factor "div" exponent								
+								|factor "mod" exponent								
+								|factor "y" exponent									
+								|exponent										
 ;
 
-expr:	                    expr OP_EQ term										
-							|expr "<>" term										
-							|expr '<' term										
-							|expr '>' term										
-							|expr "<=" term										
-							|expr ">=" term										
-							|term												
+exponent:	                	exponent '^' rvalue
+								|rvalue
 ;
 
-term:	                    term '+' factor										
-							|term '-' factor										
-							|term 'o' factor										
-							|factor												
+rvalue:                     	'(' expr ')'
+								|constant	
+								|lvalue
+								|subprogram_call
 ;
 
-factor:						factor '*' exponent									
-							|factor "div" exponent								
-							|factor "mod" exponent								
-							|factor 'y' exponent									
-							|exponent										
+constant:                   	NUMBER
+								|CHARACTER
+								|"verdadero"
+								|"falso"
 ;
 
-exponent:	                exponent '^' rvalue
-							|rvalue
+subprogram_call:	        	IDENTIFIER '(' opt_expr_list ')'
 ;
 
-rvalue:                     '(' expr ')'
-							|constant	
-							|'-' expr											
-							|lvalue			
-							|subprogram-call	
-							|"no" expr
+opt_expr_list:	            	expr_list
+                            	|%empty
 ;
 
-constant:                   NUM_CONST
-							|CHAR_CONST
-							|"verdadero"
-							|"falso"
+expr_list:				    	expr_list ',' expr
+								|expr
 ;
 
-subprogram-call:	        IDENTIFIER '(' opt-expr-list ')'
+argument_list:					argument_list ',' expr
+								|argument_list ',' STRING
+								|expr
+								|STRING
 ;
 
-opt-expr-list:	            expr-list
-                            |%empty
+lvalue_list:					lvalue_list ',' lvalue
+								|lvalue
 ;
 
-expr-list:				    expr-list ',' expr
-							|expr
+if_statement:					"si" expr opt_eols 
+								"entonces" opt_eols
+								statement_list eols
+								else_if_statement
+								"fin" "si"	
 ;
 
-type:                       "entero"											
-							|"booleano"											
-							|"caracter"											
-							|IDENTIFIER												
-							|array-type											
+else_if_statement:				"sino" else_if_statement_p
+								|%empty
 ;
 
-array-type:     	        "arreglo" '[' NUM_CONST ']' "de" type				
-;
-
-opt-eols:                   eols
-                            |%empty
-;
-
-eols:	                    eols '\n'											
-							|'\n'												
+else_if_statement_p:			"si" expr opt_eols 
+								"entonces" opt_eols
+								statement_list
+								"fin" "si" opt_eols
+								else_if_statement
+								|eols statement_list eols
 ;

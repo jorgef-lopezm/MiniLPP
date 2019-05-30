@@ -81,8 +81,8 @@ int Lexer::getNextToken() {
             "^"                                     { return makeToken('^'); }
             "<"                                     { return makeToken('<'); }
             ">"                                     { return makeToken('>'); }
-            "="                                     { return makeToken(OP_EQ); }
-            "!="                                    { return makeToken(OP_NOT_EQ); }
+            "="                                     { return makeToken('='); }
+            "<>"                                    { return makeToken(OP_NOT_EQ); }
             "<="                                    { return makeToken(OP_LESS_EQ); }
             ">="                                    { return makeToken(OP_GREATER_EQ); }
             "\""                                    { goto str_constant; }
@@ -133,7 +133,7 @@ int Lexer::getNextToken() {
             'verdadero'                             { return makeToken(KW_VERDADERO); }                                                                                         
             'y'                                     { return makeToken(KW_Y); }
             ids                                     { return makeToken(IDENTIFIER); }
-            num | hex | bin                         { return makeToken(NUM_CONST); }
+            num | hex | bin                         { return makeToken(NUMBER); }
             "//"                                    { goto line_comment; }
             "/*"                                    { goto block_comment; }
             end                                     { return EoF; }                                               
@@ -142,14 +142,14 @@ int Lexer::getNextToken() {
 str_constant:
         /*!re2c
             "\"\""                                  { goto str_constant; }
-            "\""                                    { return makeToken(STR_CONST); }
+            "\""                                    { return makeToken(STRING); }
             end                                     { return ERROR; }
             .                                       { goto str_constant; }
         */
 ch_constant:
         /*!re2c
-            "'''"                                   { return makeToken(CHAR_CONST); }
-            ."'"                                    { return makeToken(CHAR_CONST); }
+            "'''"                                   { return makeToken(CHARACTER); }
+            ."'"                                    { return makeToken(CHARACTER); }
             "'"                                     { return ERROR; }
         */
 line_comment:
