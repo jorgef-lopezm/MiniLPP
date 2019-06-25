@@ -12,7 +12,8 @@
 #define ERROR   -1
 #define EoF     0
 
-using token = Expr::Parser::token;
+using semantic_type = Lpp::Parser::semantic_type;
+using token = Lpp::Parser::token;
 
 class Lexer {
 public:
@@ -41,7 +42,7 @@ private:
 public:
     int getLineNo() { return lineNo; }
     std::string getLexeme() { return lexeme; }
-    int getNextToken();
+    int getNextToken(semantic_type *yylval);
 };
 
 #endif

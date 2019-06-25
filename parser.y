@@ -3,25 +3,40 @@
 %parse-param { Lexer & lexer }
 %define parse.error verbose
 %define api.value.type variant
-%define api.namespace {Expr}
+%define api.namespace {Lpp}
 %define api.parser.class {Parser}
 
 %code requires{
     #include <unordered_map>
+	#include "ast.h"
+
     class Lexer;
 }
 
 %{
     #include "lexer.h"
 
-    #define yylex(arg) lexer.getNextToken()
+    #define yylex(arg) lexer.getNextToken(arg)
     
-	namespace Expr{
+	namespace Lpp{
     	void Parser::error(const std::string & msg) {
     	    std::cerr << "Syntax Error:Line:" << lexer.getLineNo() << ":Token: \"" << lexer.getLexeme() << "\": " << msg << std::endl;
     	}
 	}
+	MemoryHandler handler;
+	YYNODESTATE pool;
 %}
+
+%type <ASTNode*> program type array_type subprogram_decl statement assign
+%type <ASTNode*> lvalue expr term factor exponent rvalue constant subprogram_call
+%type <ASTNode*> if_statement
+%type <std::list<ASTNode*>> opt_subtype_definition_section subtype_definition_section
+%type <std::list<ASTNode*>> opt_variable_section variable_section
+%type <std::list<ASTNode*>> opt_subprogram_decl subprogram_decl_list
+%type <std::list<ASTNode*>> opt_arguments argument_decl_list
+%type <std::list<ASTNode*>> statement_list lvalue_list expr_list opt_expr_list
+%type <std::list<ASTNode*>> argument_list else_statement
+%type <std::list<std::string>> id_list
 
                                     /*---Key Words---*/
 %token KW_ABRIR             "abrir"
@@ -76,7 +91,10 @@
 %token OP_GREATER_EQ		">="
                                     /*---Identifier & Constants---*/
 %token STRING CHARACTER IDENTIFIER NUMBER
-									
+
+%type <std::string> STRING IDENTIFIER
+%type <char> CHARACTER
+%type <int> NUMBER									
 									
 									/*---Operations Precedence---*/
 %left '=' "<>" '<' '>' "<=" ">="
@@ -86,7 +104,15 @@
 
 %%
 
-input:	                    	program																{ std::cout << "File Parsed Succesfully" << std::endl; }										
+input:	                    	program																{
+																										std::cout << $1->toString() << std::endl << std::endl;
+																										($1)->genCode(handler);
+
+																										std::cout << ($1)->code << std::endl;
+																										std::ofstream out("../ASM/file.asm");
+    																									out << ($1)->code;
+    																									out.close();
+																									}											
 ;
 
 program:	              		opt_subtype_definition_section
@@ -94,65 +120,206 @@ program:	              		opt_subtype_definition_section
 								opt_subprogram_decl
 								"inicio" opt_eols
 								statement_list eols
-								"fin" opt_eols											
+								"fin" opt_eols														{ 
+																										for (auto const &vars: $2) {
+																											VariableDeclaration* varsPtr = static_cast<VariableDeclaration*>(vars);
+																											varsPtr->loadVariables(handler);
+																										}
+
+																										for (auto const &method: $3) {
+																											if (method->isA(ProcedureDeclaration_kind)) {
+																												ProcedureDeclaration* methodPtr = static_cast<ProcedureDeclaration*>(method);
+																												methodPtr->loadProcedures(handler);
+																											} else {
+																												FunctionDeclaration* funcPtr = static_cast<FunctionDeclaration*>(method);
+																												funcPtr->loadFunctions(handler);
+																											}
+																										}
+																													
+
+																										std::cout << handler.getDataSection() << std::endl;
+
+																										$$ = pool.ProgramNodeCreate(lexer.getLineNo(), $1, $2, $3, $6); 
+																										
+																									}								
 ;
 
-opt_subtype_definition_section: subtype_definition_section eols
-                                |%empty
+opt_subtype_definition_section: subtype_definition_section eols										{ $$ = $1; }
+                                |%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
 ;
 
-subtype_definition_section:		subtype_definition_section eols "tipo" IDENTIFIER "es" type
-								|"tipo" IDENTIFIER "es" type		
+subtype_definition_section:		subtype_definition_section eols "tipo" IDENTIFIER "es" type			{ $$ = $1; $$.emplace_back(pool.SubTypeDeclarationCreate(lexer.getLineNo(), $4, $6)); }		
+								|"tipo" IDENTIFIER "es" type										{ $$.emplace_back(pool.SubTypeDeclarationCreate(lexer.getLineNo(), $2, $4)); }
 ;
 
-opt_variable_section:	    	variable_section eols
-                            	|%empty
+type:                       	"entero"															{ $$ = pool.TypeCreate(lexer.getLineNo(), 0, 0, 0); }
+								|"booleano"															{ $$ = pool.TypeCreate(lexer.getLineNo(), 1, 0, 0); }
+								|"caracter"															{ $$ = pool.TypeCreate(lexer.getLineNo(), 2, 0, 0); }
+								|array_type															{ $$ = $1; }
 ;
 
-variable_section:	        	variable_section eols type id_list			
-								|type id_list		
+array_type:     	        	"arreglo" '[' NUMBER ']' "de" type									{ $$ = pool.TypeCreate(lexer.getLineNo(), 3, $3, $6); }
 ;
 
-opt_subprogram_decl:			subprogram_decl_list eols
-                            	|%empty
+opt_variable_section:	    	variable_section eols												{ $$ = $1; }											
+                            	|%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
 ;
 
-subprogram_decl_list:			subprogram_decl_list eols subprogram_decl			
-								|subprogram_decl										
+variable_section:	        	variable_section eols type id_list									{ $$ = $1; $$.emplace_back(pool.VariableDeclarationCreate(lexer.getLineNo(), $3, $4)); }
+								|type id_list														{ $$.emplace_back(pool.VariableDeclarationCreate(lexer.getLineNo(), $1, $2)); }
+;
+
+id_list:						id_list	',' IDENTIFIER												{ $$ = $1; $$.emplace_back($3); }									
+								|IDENTIFIER															{ $$.emplace_back($1); }
+;
+
+opt_subprogram_decl:			subprogram_decl_list eols											{ $$ = $1; }
+                            	|%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
+;
+
+subprogram_decl_list:			subprogram_decl_list eols subprogram_decl							{ $$ = $1; $$.emplace_back($3); }
+								|subprogram_decl													{ $$.emplace_back($1); }
 ;
 
 subprogram_decl:				"funcion" IDENTIFIER opt_arguments ':' type eols
 								opt_variable_section
 								"inicio" opt_eols
 								statement_list eols
-								"fin"
+								"fin"																{ $$ = pool.FunctionDeclarationCreate(lexer.getLineNo(), $2, $3, $5, $7, $10); }
 								|"procedimiento" IDENTIFIER opt_arguments eols
 								opt_variable_section
 								"inicio" opt_eols
 								statement_list eols
-								"fin"											
+								"fin"																{ $$ = pool.ProcedureDeclarationCreate(lexer.getLineNo(), $2, $3, $5, $8); }
 ;
 
-statement_list:					statement_list eols statement
-								|statement
+opt_arguments:					'(' argument_decl_list ')'											{ $$ = $2; }
+                            	|%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
 ;
 
-statement:						assign
-								|"llamar" IDENTIFIER
-								|"llamar" subprogram_call
-								|"escriba" argument_list
-								|"lea" lvalue_list
-								|if_statement
+argument_decl_list:	        	argument_decl_list ',' type IDENTIFIER								{ $$ = $1; $$.emplace_back(pool.ArgumentDeclarationCreate(lexer.getLineNo(), $3, $4)); }
+								|argument_decl_list ',' "var" type IDENTIFIER						{ $$ = $1; $$.emplace_back(pool.ArgumentDeclarationCreate(lexer.getLineNo(), $4, $5)); }
+								|type IDENTIFIER													{ $$.emplace_back(pool.ArgumentDeclarationCreate(lexer.getLineNo(), $1, $2)); }
+								|"var" type IDENTIFIER												{ $$.emplace_back(pool.ArgumentDeclarationCreate(lexer.getLineNo(), $2, $3)); }
+;
+
+statement_list:					statement_list eols statement										{ $$ = $1; $$.emplace_back($3); }
+								|statement															{ $$.emplace_back($1); }
+;
+
+statement:						assign																{ $$ = $1; }
+								|"llamar" IDENTIFIER												{ $$ = pool.CallStatementCreate(lexer.getLineNo(), (pool.LeftValueCreate(lexer.getLineNo(), $2, nullptr))); }
+								|"llamar" subprogram_call											{ $$ = pool.CallStatementCreate(lexer.getLineNo(), $2); }
+								|"escriba" argument_list											{ $$ = pool.WriteStatementCreate(lexer.getLineNo(), $2); }
+								|"lea" lvalue_list													{ $$ = pool.ReadStatementCreate(lexer.getLineNo(), $2); }
+								|if_statement														{ $$ = $1; }
 								|"mientras" expr opt_eols 
 								"haga" eols
 								statement_list eols
-								"fin" "mientras"
+								"fin" "mientras"													{ $$ = pool.WhileStatementCreate(lexer.getLineNo(), $2, $6); }
 								|"repita" eols
 								statement_list eols
-								"hasta" expr									
-								|"para" assign "hasta" expr "haga" eols
+								"hasta" expr														{ $$ = pool.RepeatStatementCreate(lexer.getLineNo(), $3, $6); }
+								|"para" assign "hasta" expr "haga" eols				
 								statement_list eols
-								"fin" "para"										
+								"fin" "para"														{ $$ = pool.ForStatementCreate(lexer.getLineNo(), $2, $4, $7); }
+								|"retorne" expr														{ $$ = pool.ReturnStatementCreate(lexer.getLineNo(), $2); std::cout << $$->toString() << std::endl; }
+;
+
+assign:							lvalue "<-" expr													{ $$ = pool.AssignStatementCreate(lexer.getLineNo(), $1, $3);}
+;
+
+lvalue_list:					lvalue_list ',' lvalue												{ $$ = $1; $$.emplace_back($3); }
+								|lvalue																{ $$.emplace_back($1); }
+;
+
+lvalue:	                    	IDENTIFIER															{ $$ = pool.LeftValueCreate(lexer.getLineNo(), $1, nullptr); }
+								|IDENTIFIER '[' expr ']'											{ $$ = pool.LeftValueCreate(lexer.getLineNo(), $1, $3); }
+;
+
+opt_expr_list:	            	expr_list															{ $$ = $1; }
+                            	|%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
+;
+
+expr_list:				    	expr_list ',' expr													{ $$ = $1; $$.emplace_back($3); }
+								|expr																{ $$.emplace_back($1); }
+;
+
+expr:	                    	expr '=' term														{ $$ = pool.EqualExprCreate(lexer.getLineNo(), $1, $3); }
+								|expr "<>" term														{ $$ = pool.NotEqExprCreate(lexer.getLineNo(), $1, $3); }
+								|expr '<' term														{ $$ = pool.LessExprCreate(lexer.getLineNo(), $1, $3); }
+								|expr '>' term														{ $$ = pool.GrtrExprCreate(lexer.getLineNo(), $1, $3); }
+								|expr "<=" term														{ $$ = pool.LessEqExprCreate(lexer.getLineNo(), $1, $3); }
+								|expr ">=" term														{ $$ = pool.GrtrEqExprCreate(lexer.getLineNo(), $1, $3); }
+								|term																{ $$ = $1; }
+;
+
+term:	                    	term '+' factor														{ $$ = pool.AddExprCreate(lexer.getLineNo(), $1, $3); }
+								|term '-' factor													{ $$ = pool.SubExprCreate(lexer.getLineNo(), $1, $3); }
+								|term "o" factor													{ $$ = pool.OrExprCreate(lexer.getLineNo(), $1, $3); }
+								|factor																{ $$ = $1; }
+;
+
+factor:							factor '*' exponent													{ $$ = pool.MulExprCreate(lexer.getLineNo(), $1, $3); }
+								|factor "div" exponent												{ $$ = pool.DivExprCreate(lexer.getLineNo(), $1, $3); }
+								|factor "mod" exponent												{ $$ = pool.ModExprCreate(lexer.getLineNo(), $1, $3); }
+								|factor "y" exponent												{ $$ = pool.AndExprCreate(lexer.getLineNo(), $1, $3); }
+								|exponent															{ $$ = $1; }
+;
+
+exponent:	                	exponent '^' rvalue													{ $$ = pool.ExponentExprCreate(lexer.getLineNo(), $1, $3); }
+								|rvalue																{ $$ = $1; }
+;
+
+rvalue:                     	'(' expr ')'														{ $$ = $2; }
+								|constant															{ $$ = $1; }
+								|lvalue																{ $$ = $1; }
+								|subprogram_call													{ $$ = $1; }
+;
+
+constant:                   	NUMBER																{ $$ = pool.NumExpressionCreate(lexer.getLineNo(), $1); }
+								|CHARACTER															{ $$ = pool.CharExpressionCreate(lexer.getLineNo(), $1); }
+								|"verdadero"														{ $$ = pool.BoolExpressionCreate(lexer.getLineNo(), 1); }
+								|"falso"															{ $$ = pool.BoolExpressionCreate(lexer.getLineNo(), 0); }
+;
+
+subprogram_call:	        	IDENTIFIER '(' opt_expr_list ')'									{ $$ = pool.SubprogramCallCreate(lexer.getLineNo(), $1, $3); }
+;
+
+argument_list:					argument_list ',' expr												{ $$ = $1; $$.emplace_back($3); }
+								|argument_list ',' STRING											{ $$ = $1; $$.emplace_back(pool.StringExpressionCreate(lexer.getLineNo(), $3)); }
+								|expr																{ $$.emplace_back($1); }
+								|STRING																{ $$.emplace_back(pool.StringExpressionCreate(lexer.getLineNo(), $1)); }
+;
+
+if_statement:					"si" expr opt_eols 
+								"entonces" opt_eols
+								statement_list eols
+								else_statement
+								"fin" "si"															{ $$ = pool.IfStatementCreate(lexer.getLineNo(), $2, $6, $8); }
+;
+
+
+else_statement:					"sino" eols statement_list eols										{ $$ = $3; }
+								|%empty																{ 
+																										std::list<ASTNode*> emptyList;
+																										$$ = emptyList;
+																									}
 ;
 
 opt_eols:                   	eols
@@ -161,114 +328,4 @@ opt_eols:                   	eols
 
 eols:	                    	eols '\n'											
 								|'\n'												
-;
-
-type:                       	"entero"											
-								|"booleano"											
-								|"caracter"											
-								|array-type											
-;
-
-array-type:     	        	"arreglo" '[' NUMBER ']' "de" type				
-;
-
-id_list:						id_list	',' IDENTIFIER									
-								|IDENTIFIER												
-;
-
-opt_arguments:					'(' argument_decl_list ')'			
-                            	|%empty
-;
-
-argument_decl_list:	        	argument_decl_list ',' type IDENTIFIER					
-								|argument_decl_list ',' "var" type IDENTIFIER				
-								|type IDENTIFIER											
-								|"var" type IDENTIFIER									
-;
-
-assign:							lvalue "<-" expr
-;
-
-lvalue:	                    	IDENTIFIER												
-								|IDENTIFIER '[' expr ']'									
-;
-
-expr:	                    	expr '=' term										
-								|expr "<>" term										
-								|expr '<' term										
-								|expr '>' term										
-								|expr "<=" term										
-								|expr ">=" term
-								|"no" expr
-								|'-' expr								
-								|term												
-;
-
-term:	                    	term '+' factor										
-								|term '-' factor										
-								|term "o" factor										
-								|factor												
-;
-
-factor:							factor '*' exponent									
-								|factor "div" exponent								
-								|factor "mod" exponent								
-								|factor "y" exponent									
-								|exponent										
-;
-
-exponent:	                	exponent '^' rvalue
-								|rvalue
-;
-
-rvalue:                     	'(' expr ')'
-								|constant	
-								|lvalue
-								|subprogram_call
-;
-
-constant:                   	NUMBER
-								|CHARACTER
-								|"verdadero"
-								|"falso"
-;
-
-subprogram_call:	        	IDENTIFIER '(' opt_expr_list ')'
-;
-
-opt_expr_list:	            	expr_list
-                            	|%empty
-;
-
-expr_list:				    	expr_list ',' expr
-								|expr
-;
-
-argument_list:					argument_list ',' expr
-								|argument_list ',' STRING
-								|expr
-								|STRING
-;
-
-lvalue_list:					lvalue_list ',' lvalue
-								|lvalue
-;
-
-if_statement:					"si" expr opt_eols 
-								"entonces" opt_eols
-								statement_list eols
-								else_if_statement
-								"fin" "si"	
-;
-
-else_if_statement:				"sino" else_if_statement_p
-								|%empty
-;
-
-else_if_statement_p:			"si" expr opt_eols 
-								"entonces" opt_eols
-								statement_list
-								"fin" "si" opt_eols
-								else_if_statement
-								|eols statement_list eols
 ;

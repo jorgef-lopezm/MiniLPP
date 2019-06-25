@@ -1,0 +1,776 @@
+genCode(ProgramNode){
+    std::ostringstream sscode;
+    std::ostringstream methods;
+    
+    if(!subprogramSection.empty()) {
+        for (auto const &callDecl : subprogramSection) {
+            callDecl->genCode(handler);
+            methods  << callDecl->code;
+        }
+    }
+
+    if(!statements.empty())
+    {
+        for (auto const &stmt : statements) {
+            stmt->genCode(handler);
+            sscode  << stmt->code;
+        }
+    }
+
+    std::ostringstream dataSection;
+    dataSection     << handler.getDataSection() << "\n"
+                    << "section .text\n"
+                    << handler.getExponentFunction()
+                    << methods.str()
+                    << "main:\n";
+
+    code = dataSection.str() + sscode.str() + "ret";
+}
+
+genCode(SubTypeDeclaration){
+
+}
+
+genCode(Type){
+    
+}
+
+genCode(VariableDeclaration){
+    
+}
+
+genCode(FunctionDeclaration){
+    std::ostringstream sscode;
+    handler.setCurrentContext(identifier);
+
+    sscode  << identifier << ":\npush ebp\n"
+            << "mov ebp, esp\n"
+            << "sub esp, " << handler.getMethodVarsAmt(identifier)*4 << "\n";
+    
+    for (auto const &stmt : statements) {
+        stmt->genCode(handler);
+        sscode  << stmt->code;
+    }
+
+    sscode  << "mov esp, ebp\n"
+            << "pop ebp\n"
+            << "ret\n";
+
+    code = sscode.str();
+    handler.resetContext();
+}
+
+genCode(ProcedureDeclaration){
+    std::ostringstream sscode;
+    handler.setCurrentContext(identifier);
+
+    sscode  << identifier << ":\npush ebp\n"
+            << "mov ebp, esp\n"
+            << "sub esp, " << handler.getMethodVarsAmt(identifier)*4 << "\n";
+    
+    for (auto const &stmt : statements) {
+        stmt->genCode(handler);
+        sscode  << stmt->code;
+    }
+
+    sscode  << "mov esp, ebp\n"
+            << "pop ebp\n"
+            << "ret\n";
+
+    code = sscode.str();
+    handler.resetContext();
+}
+
+genCode(ArgumentDeclaration){
+    
+}
+
+genCode(AssignStatement){
+    std::ostringstream sscode;
+    Expression* exprPtr = static_cast<Expression*>(expr);
+    lvalue->genCode(handler);
+    expr->genCode(handler);
+        
+    sscode  << exprPtr->code;
+    sscode << "mov eax, dword[" << exprPtr->place << "]\n";
+   
+    if(lvalue->isA(LeftValue_kind))
+    {
+        LeftValue* idExpr = static_cast<LeftValue*>(lvalue);
+        sscode << "mov dword[" << idExpr->place << "], eax\n";
+    }
+    code = sscode.str();
+}
+
+genCode(CallStatement){
+    call->genCode(handler);
+    code = call->code;
+}
+
+genCode(WriteStatement){
+    std::ostringstream fmt;
+    std::ostringstream sscode;
+    int argsCount = 0;
+
+    for (auto const &argument : arguments) {
+        Expression* arg = static_cast<Expression*>(argument);
+
+        if(argument->isA(StringExpression_kind))
+            fmt << "%s ";
+        else if(argument->isA(CharExpression_kind))
+            fmt << "%c ";
+        else
+            fmt << "%d ";    
+    }
+
+    arguments.reverse();
+
+    for (auto const &argument : arguments) {
+        argument->genCode(handler);
+        sscode << argument->code;
+        if (argument->isA(StringExpression_kind)) {
+            StringExpression* arg = static_cast<StringExpression*>(argument);
+            sscode << "push " << arg->place << "\n";
+        } else {
+            Expression* arg = static_cast<Expression*>(argument);
+            if (handler.getCurrentContext() != nullptr && arg->isA(LeftValue_kind)) {
+                LeftValue* expr = static_cast<LeftValue*>(argument);
+                sscode << "push dword[" << arg->place << "]\n";      
+            } else {
+                sscode << "push dword[" << arg->place << "]\n"; 
+            }           
+        }
+
+        argsCount++;
+    }
+
+    sscode  << "push " << handler.getFormat(fmt.str()) << "\n"
+            << "call printf\n"
+            << "add esp, " << argsCount*4 + 4 << "\n";
+    code = sscode.str();
+}
+
+genCode(ReadStatement){
+    
+}
+
+genCode(IfStatement){
+    Expression* expr = static_cast<Expression*>(cond);
+    std::ostringstream sscode;
+    std::string elseLbl = handler.getNewLabel();
+    std::string exitLbl = handler.getNewLabel();
+    cond->genCode(handler);
+
+    sscode  << cond->code
+            << "cmp dword[" << expr->place << "], 0\n";
+    
+    if(!fStatements.empty())
+            sscode << "je " << elseLbl << "\n";
+    else
+            sscode << "je " << exitLbl << "\n";
+
+
+    for(auto const &stmt : tStatements) {
+        stmt->genCode(handler);
+        sscode << stmt->code;
+    }
+
+    sscode << "jmp " << exitLbl << "\n"
+        << elseLbl << ":\n";
+        
+    for(auto const &stmt : fStatements) {
+        stmt->genCode(handler);
+        sscode << stmt->code;
+    }
+
+    sscode << exitLbl << ":\n";
+    code = sscode.str();
+}
+
+genCode(ElseIfStatement){
+    
+}
+
+genCode(ElseStatement){
+    
+}
+
+genCode(WhileStatement){
+    std::ostringstream sscode;
+    Expression* expr = static_cast<Expression*>(condition);
+    condition->genCode(handler);
+
+    std::string whileLbl = handler.getNewLabel();
+    std::string exitWhileLbl = handler.getNewLabel();
+
+    sscode  << whileLbl << ":\n"
+            << condition->code
+            << "cmp dword[" << expr->place << "], 0\n"
+            << "je " << exitWhileLbl << "\n";
+
+    
+    for (auto const &stmt : statements) {
+        stmt->genCode(handler);
+        sscode << stmt->code;
+    }
+
+    sscode  << "jmp " << whileLbl << "\n"
+            << exitWhileLbl << ":\n";
+    code = sscode.str();
+}
+
+genCode(RepeatStatement){
+    std::ostringstream sscode;
+    Expression* expr = static_cast<Expression*>(condition);
+    condition->genCode(handler);
+
+    std::string repeatLbl = handler.getNewLabel(); 
+    std::string exitLbl = handler.getNewLabel();
+    sscode  << repeatLbl << ":\n";
+        
+    for (auto const &stmt : statements) {
+        stmt->genCode(handler);
+        sscode << stmt->code;
+    }
+
+    sscode  << condition->code
+            << "cmp dword[" << expr->place << "], 1\n"
+            << "je " << exitLbl << "\n"
+            << "jmp " << repeatLbl << "\n"
+            << exitLbl << ":\n";
+    code = sscode.str();
+}
+
+genCode(ForStatement){
+    std::ostringstream sscode;
+    Expression* expr = static_cast<Expression*>(cond);
+    AssignStatement* as = static_cast<AssignStatement*>(assign);
+    Expression* asLhs = static_cast<Expression*>(as->lvalue);
+
+    assign->genCode(handler);
+    cond->genCode(handler);
+    std::string forLbl = handler.getNewLabel();
+    std::string exitForLbl = handler.getNewLabel();
+
+    sscode  << assign->code
+            << cond->code
+            << forLbl << ":\n"
+            << "mov eax, dword[" << expr->place << "]\n"
+            << "cmp dword[" << asLhs->place << "], " << "eax\n"
+            << "jg " << exitForLbl << "\n";
+
+    for (auto const &stmt : statements) {
+        stmt->genCode(handler);
+        sscode << stmt->code;
+    }
+
+    sscode  << "inc dword[" << asLhs->place << "]\n"
+            << "jmp " << forLbl << "\n"
+            << exitForLbl << ":\n";
+    code = sscode.str();
+}
+
+genCode(ReturnStatement){
+    std::ostringstream sscode;
+    Expression* exprPtr = static_cast<Expression*>(expr);
+    expr->genCode(handler);
+    sscode << expr->code
+            << "mov eax, dword[" << exprPtr->place << "]\n"
+            << "mov esp, ebp\n"
+            << "pop ebp\n"
+            << "ret\n";
+    code = sscode.str();
+}
+
+genCode(EqualExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "sete" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(NotEqExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "setne" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(LessExpr){
+        std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "setl" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(GrtrExpr){
+        std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "setg" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(LessEqExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "setle" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(GrtrEqExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if (handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "cmp " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "cmp " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "setge" << " al\n"
+            << "cbw\n"
+            << "cwd\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(AddExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+
+    sscode  << expr1->code 
+            << expr2->code;
+    
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "add " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "add " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+
+    sscode << "mov dword[" << place << "]," << e1Place << "\n";
+    code = sscode.str();
+}
+
+genCode(SubExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+
+    sscode  << expr1->code 
+            << expr2->code;
+    
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "sub " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "sub " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+    
+    sscode << "mov dword[" << place << "]," << e1Place << "\n";
+    code = sscode.str();
+}
+
+genCode(OrExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+
+    sscode  << expr1->code 
+            << expr2->code;
+    
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "or " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "or " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+    
+    sscode << "mov dword[" << place << "]," << e1Place << "\n";
+    code = sscode.str();
+}
+
+genCode(MulExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+
+    sscode  << expr1->code 
+            << expr2->code;
+    
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "imul " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "imul " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+    
+    sscode << "mov dword[" << place << "]," << e1Place << "\n";
+    code = sscode.str();
+}
+
+genCode(DivExpr){
+    std::ostringstream sscode;
+    Expression *e1 = static_cast<Expression*>(expr1);
+    Expression *e2 = static_cast<Expression*>(expr2);
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "mov ebx, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov ebx, dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "cdq\n"
+            << "idiv ebx\n"
+            << "mov dword[" << place << "], eax\n";
+
+    code = sscode.str();
+}
+
+genCode(ModExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    }
+    else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov ebx, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov ebx, dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "cdq\n"
+            << "idiv ebx\n"
+            << "mov dword[" << place << "], edx\n";
+
+    code = sscode.str();
+}
+
+genCode(AndExpr){
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+
+    sscode  << expr1->code 
+            << expr2->code;
+    
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind)) {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "mov eax, dword[" << expr->place << "]\n";
+    } else {
+        sscode << "mov eax, dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "and " << e1Place << ", dword[" << expr->place << "]\n";
+    } else {
+        sscode << "and " << e1Place << ", dword[" << e2->place << "]\n";
+    }
+    
+    sscode << "mov dword[" << place << "]," << e1Place << "\n";
+    code = sscode.str();
+}
+
+genCode(ExponentExpr){
+    handler.setUsesExponentiation();
+    std::ostringstream sscode;
+    Expression* e1 = static_cast<Expression*>(expr1);
+    Expression* e2 = static_cast<Expression*>(expr2);
+    std::string e1Place = "eax";
+    expr1->genCode(handler);
+    expr2->genCode(handler);
+    place = handler.getTempPlace();
+    sscode  << expr1->code 
+            << expr2->code;
+
+    if(handler.getCurrentContext() != nullptr && expr1->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr1);
+        sscode << "push dword[" << expr->place << "]\n";
+    } else {
+        sscode << "push dword[" << e1->place << "]\n";
+    }
+
+    if(handler.getCurrentContext() != nullptr && expr2->isA(LeftValue_kind))
+    {
+        LeftValue* expr = static_cast<LeftValue*>(expr2);
+        sscode << "push dword[" << expr->place << "]\n";
+    } else {
+        sscode << "push dword[" << e2->place << "]\n";
+    }
+
+    sscode  << "call pow\n"
+            << "add esp, 8\n"
+            << "mov dword[" << place << "], eax\n";
+    code = sscode.str();
+}
+
+genCode(NumExpression){
+    place = handler.getConstPlace(value);
+    handler.registerConstant(value, place);
+}
+
+genCode(CharExpression){
+    int ascii_code = (int)(value);
+    place = handler.getConstPlace(ascii_code);
+    handler.registerConstant(ascii_code, place);
+    code = "mov dword[" + place + "], " + std::to_string(ascii_code) + "\n";
+}
+
+genCode(BoolExpression){
+    place = (value) ? "true" : "false";
+}
+
+genCode(StringExpression){
+    value = value.substr(1, value.size() - 2);
+    place = handler.getStrPlace(value);
+}
+
+genCode(LeftValue){
+    place = handler.getVariablePlace(identifier);
+}
+
+genCode(SubprogramCall){
+    std::ostringstream sscode;
+    place = handler.getTempPlace();
+
+    parameters.reverse();
+    for (auto const &argument : parameters) {
+        Expression* arg = static_cast<Expression*>(argument);
+        argument->genCode(handler);
+        sscode <<  argument->code;
+        sscode << "push dword[" << arg->place << "]\n";
+    }
+
+    sscode  << "call " << identifier << "\n";
+    if(handler.getMethodParamsAmt(identifier) != 0)
+        sscode << "add esp, " << std::to_string(handler.getMethodParamsAmt(identifier)*4) << "\n";
+    
+    sscode << "mov dword[" << place << "], eax\n";
+
+    code = sscode.str();
+}

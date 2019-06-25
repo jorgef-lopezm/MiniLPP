@@ -1,0 +1,60 @@
+Entero a, b
+
+funcion Suma(Entero a, Entero b) : Entero
+Inicio
+    retorne a + b
+Fin
+
+funcion Resta(Entero a, Entero b) : Entero
+Inicio
+    retorne a - b
+Fin
+
+funcion Multiplicacion(Entero a, Entero b) : Entero
+Inicio
+    retorne a * b
+Fin
+
+funcion Division(Entero a, Entero b) : Entero
+Inicio
+    retorne a div b
+Fin
+
+funcion Residuo(Entero a, Entero b) : Entero
+Inicio
+    retorne a mod b
+Fin
+
+procedimiento Calcular(Entero opcion, Entero a, Entero b)
+Inicio
+    Si opcion = 1 entonces
+        escriba Suma(a,b)
+    Fin Si
+    Si opcion = 2 entonces
+        escriba Resta(a,b)
+    Fin Si
+    Si opcion = 3 entonces
+        escriba Multiplicacion(a,b)
+    Fin Si
+    Si opcion = 4 entonces
+        escriba Division(a,b)
+    Fin Si
+    Si opcion = 5 entonces
+        escriba Residuo(a,b)
+    Fin Si
+    Si opcion > 5 entonces
+        escriba "Error la opcion ", opcion, " no es valida"
+    Fin Si
+Fin
+
+Inicio
+    
+    a <- 10
+    b <- 5
+
+    llamar Calcular(1, a, b)
+    llamar Calcular(2, a, b)
+    llamar Calcular(3, a, b)
+    llamar Calcular(4, a, b)
+    llamar Calcular(5, a, b)
+Fin

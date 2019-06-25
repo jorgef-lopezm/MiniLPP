@@ -1,0 +1,447 @@
+toString(ProgramNode){
+    output_ss_t ss;
+    
+    for (const auto &subtype: subtypeSection) {
+        ss << subtype->toString() << std::endl;
+    }
+
+    if (!subtypeSection.empty())
+        ss << std::endl;
+
+    for (const auto &variable: variableSection) {
+        ss << variable->toString() << std::endl;
+    }
+
+    if (!variableSection.empty())
+        ss << std::endl;
+
+    for (const auto &subprogram: subprogramSection) {
+        ss << subprogram->toString() << std::endl;
+    }
+
+    if (!subprogramSection.empty())
+        ss << std::endl;
+
+    ss << "inicio" << std::endl;
+    
+    for (const auto &statement: statements) {
+        ss << "\t" << statement->toString() << std::endl;
+    }
+
+    ss << "fin";
+
+    return ss.str();
+}
+
+toString(SubTypeDeclaration){
+    output_ss_t ss;
+
+    ss << "tipo " << identifier << " es " << type->toString();
+
+    return ss.str();
+}
+
+toString(Type){
+    output_ss_t ss;
+
+    if (type == 0) {
+        ss << "entero";
+    } else if (type == 1) {
+        ss << "booleano";
+    } else if (type == 2) {
+        ss << "caracter";
+    } else {
+        ss << "arreglo [" << arraySize << "] de" << arrayType->toString();
+    }
+
+    return ss.str();
+}
+
+toString(VariableDeclaration){
+    output_ss_t ss;
+
+    ss << type->toString();
+
+    for (string_iterator_t identifier = identifierList.begin(); identifier != identifierList.end(); ) {
+        ss << " " << *identifier;
+
+        if (++identifier != identifierList.end())
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+toString(FunctionDeclaration){
+    output_ss_t ss;
+
+    ss << "funcion " << identifier;
+
+    if (!arguments.empty()) {
+        ss << "(";
+        
+        node_iterator_t it = arguments.begin();
+
+        for (const auto &argument: arguments) {
+            ss << argument->toString();
+
+            //if ( == arguments.end())
+                //ss << ",";
+        }
+
+        ss << ")";
+    }
+
+    ss << " : " << type->toString() << std::endl;
+
+    for (const auto &variable: variableSection) {
+        ss << variable->toString() << std::endl;
+    }
+
+    for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    return ss.str();
+}
+
+toString(ProcedureDeclaration){
+    output_ss_t ss;
+
+    ss << "procedimiento " << identifier;
+
+    if (!arguments.empty()) {
+        ss << "(";
+        
+        for (const auto &argument: arguments) {
+            ss << argument->toString() << ", ";
+        }
+
+        ss << ")";
+    }
+
+    ss << std::endl;
+
+    for (const auto &variable: variableSection) {
+        ss << variable->toString() << std::endl;
+    }
+
+    for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    return ss.str();
+}
+
+toString(ArgumentDeclaration){
+    output_ss_t ss;
+
+    ss << type->toString() << " " << identifier;
+
+    return ss.str();
+}
+
+toString(AssignStatement){
+    output_ss_t ss;
+
+    ss << lvalue->toString() << " <- " << expr->toString();
+
+    return ss.str();
+}
+
+toString(CallStatement){
+    output_ss_t ss;
+
+    ss << "llamar " << call->toString();
+
+    return ss.str();
+}
+
+toString(WriteStatement){
+    output_ss_t ss;
+
+    ss << "escriba ";
+
+    for (const auto &argument: arguments) {
+        ss << argument->toString() << ", ";
+    }
+
+    return ss.str();
+}
+
+toString(ReadStatement){
+    output_ss_t ss;
+
+    ss << "escriba ";
+
+    for (const auto &argument: arguments) {
+        ss << argument->toString() << ", ";
+    }
+
+    return ss.str();
+}
+
+toString(IfStatement){
+    output_ss_t ss;
+
+    ss << "si " << cond->toString() << " entonces" << std::endl;
+
+    for (const auto &statement: tStatements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    if (!fStatements.empty()) {
+        for (const auto &elif: fStatements) {
+            ss << elif->toString() << std::endl;
+        }
+    }
+
+    return ss.str();
+}
+
+toString(ElseIfStatement){
+    output_ss_t ss;
+
+    ss << "sino si " << cond->toString() << " entonces" << std::endl;
+
+    for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    ss << "fin si";
+
+    return ss.str();
+}
+
+toString(ElseStatement){
+    output_ss_t ss;
+
+    ss << "sino" << std::endl;
+
+    for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    return ss.str();
+}
+
+toString(WhileStatement){
+    output_ss_t ss;
+
+    ss << "mientras " << condition->toString() << "haga" << std::endl;
+
+   for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    ss << "fin mientras";
+
+    return ss.str();
+}
+
+toString(RepeatStatement){
+    output_ss_t ss;
+    
+    ss << "repita" << std::endl;
+
+   for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    ss << "hasta " << condition->toString();    
+
+    return ss.str();
+}
+
+toString(ForStatement){
+    output_ss_t ss;
+
+    ss << "para " << assign->toString() << "hasta " << cond->toString() << " haga" << std::endl;
+
+    for (const auto &statement: statements) {
+        ss << statement->toString() << std::endl;
+    }
+
+    ss << "fin para";
+
+    return ss.str();
+}
+
+toString(ReturnStatement){
+    output_ss_t ss;
+
+    ss << "retorne" << expr->toString();
+
+    return ss.str();
+}
+
+toString(EqualExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " = " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(NotEqExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " <> " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(LessExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " < " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(GrtrExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " > " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(LessEqExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " <= " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(GrtrEqExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " >= " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(AddExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " + " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(SubExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " - " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(OrExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " o " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(MulExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " * " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(DivExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " div " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(ModExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " mod " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(AndExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " y " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(ExponentExpr){
+    output_ss_t ss;
+
+    ss << expr1->toString() << " ^ " << expr2->toString();
+
+    return ss.str();
+}
+
+toString(NumExpression){
+    output_ss_t ss;
+
+    ss << value;
+
+    return ss.str();
+}
+
+toString(CharExpression){
+    output_ss_t ss;
+
+    ss << value;
+
+    return ss.str();
+}
+
+toString(BoolExpression){
+    output_ss_t ss;
+
+    if (value == 0)
+        ss << "falso";
+    else
+        ss << "verdadero";
+
+    return ss.str();
+}
+
+toString(LeftValue){
+    output_ss_t ss;
+
+    ss << identifier;
+
+    if (index != nullptr) {
+        ss << "[" << index->toString() << "]";
+    }
+
+    return ss.str();
+}
+
+toString(SubprogramCall){
+    output_ss_t ss;
+
+    ss << identifier << "(";
+
+    for (auto const &parameter: parameters) {
+        ss << parameter->toString();
+    }
+
+    return ss.str();
+}
+
+toString(StringExpression){
+    output_ss_t ss;
+
+    ss << value;
+    
+    return ss.str();
+}

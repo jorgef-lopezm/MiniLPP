@@ -7,6 +7,13 @@ find_package(RE2C REQUIRED)
 
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++14")
 
+# Run treec to generate the AST
+add_custom_command (
+  OUTPUT ast.cpp ast.h
+  COMMAND treecc -o ast.cpp -h ast.h ${PROJECT_SOURCE_DIR}/../ast.tc
+  MAIN_DEPENDENCY ${PROJECT_SOURCE_DIR}/../ast.tc
+  )
+
 # Run RE2C to generate the lexer
 add_custom_command (
   OUTPUT lexer.cpp
@@ -26,5 +33,5 @@ include_directories(${PROJECT_SOURCE_DIR}/../)
 include_directories(${PROJECT_SOURCE_DIR}/build)
 
 
-add_executable(test_parser lexer.cpp parser.cpp
+add_executable(test_parser ${PROJECT_SOURCE_DIR}/../memory_handler.cpp ${PROJECT_SOURCE_DIR}/../method_handler.cpp lexer.cpp parser.cpp ast.cpp
                           main.cpp)

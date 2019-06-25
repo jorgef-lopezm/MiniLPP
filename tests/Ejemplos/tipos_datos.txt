@@ -1,0 +1,17 @@
+booleano a, b
+
+Inicio
+	a <- verdadero
+	b <- falso
+
+	si a entonces
+		escriba "verdadero"
+	fin si
+
+	si b entonces
+		escriba "verdadero"
+	sino
+		escriba "falso"
+	fin si
+
+Fin

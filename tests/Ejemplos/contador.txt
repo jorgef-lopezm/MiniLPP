@@ -1,0 +1,24 @@
+entero a, b
+
+procedimiento contador(entero a, entero b)
+inicio
+	mientras a<=b haga
+		escriba a
+		a <- a + 1
+	fin mientras
+fin
+
+procedimiento contador_reversa(entero a, entero b)
+inicio
+	repita
+		escriba a
+		a <- a - 1
+	hasta a = b
+fin
+
+inicio
+	escriba "Contador ascendente"
+	llamar contador(1, 10)
+	escriba "Contador descendente"
+	llamar contador_reversa(10, 1)
+fin

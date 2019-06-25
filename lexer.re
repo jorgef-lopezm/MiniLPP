@@ -2,6 +2,9 @@
 
 /*!max:re2c*/
 
+extern YYNODESTATE pool;
+
+
 Lexer::Lexer(std::istream &in): ctx(in) {
     lineNo = 1;
 }
@@ -50,7 +53,7 @@ int Lexer::makeToken(int token) {
     return token;
 }
 
-int Lexer::getNextToken() {
+int Lexer::getNextToken(semantic_type *yylval) {
     std::vector<char>::iterator YYMARKER;
     
     while (1) {
@@ -132,8 +135,8 @@ int Lexer::getNextToken() {
             'var'                                   { return makeToken(token::KW_VAR); }                                                                                                                 
             'verdadero'                             { return makeToken(token::KW_VERDADERO); }                                                                                         
             'y'                                     { return makeToken(token::KW_Y); }
-            ids                                     { return makeToken(token::IDENTIFIER); }
-            num | hex | bin                         { return makeToken(token::NUMBER); }
+            ids                                     { yylval->emplace<std::string> () = ctx.tokenText(); return makeToken(token::IDENTIFIER); }
+            num | hex | bin                         { yylval->emplace<int> () = stoi(ctx.tokenText()); return makeToken(token::NUMBER); }
             "//"                                    { goto line_comment; }
             "/*"                                    { goto block_comment; }
             end                                     { return EoF; }                                               
@@ -142,14 +145,14 @@ int Lexer::getNextToken() {
 str_constant:
         /*!re2c
             "\"\""                                  { goto str_constant; }
-            "\""                                    { return makeToken(token::STRING); }
+            "\""                                    { yylval->emplace<std::string> () = ctx.tokenText(); return makeToken(token::STRING); }
             end                                     { return ERROR; }
             .                                       { goto str_constant; }
         */
 ch_constant:
         /*!re2c
-            "'''"                                   { return makeToken(token::CHARACTER); }
-            ."'"                                    { return makeToken(token::CHARACTER); }
+            "'''"                                   { yylval->emplace<char> () = stoi(ctx.tokenText()); return makeToken(token::CHARACTER); }
+            ."'"                                    { yylval->emplace<char> () = stoi(ctx.tokenText()); return makeToken(token::CHARACTER); }
             "'"                                     { return ERROR; }
         */
 line_comment:

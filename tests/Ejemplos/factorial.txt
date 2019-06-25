@@ -1,0 +1,12 @@
+Entero numero, factorial, a
+
+Inicio
+    numero <- 5
+    factorial <- 1
+    
+    para a <- 1 hasta numero haga
+        factorial <- factorial * a
+    fin para
+    
+    Escriba "El factorial de ", numero, " es ", factorial
+Fin

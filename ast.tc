@@ -1,0 +1,289 @@
+%option lang = "C++"
+%option reentrant
+
+%decls %{
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <list>
+
+#include "memory_handler.h"
+#include "method_handler.h"
+
+class ASTNode;
+
+using ast_node_list_t = std::list<ASTNode*>;
+using string_t = std::string;
+using id_list = std::list<std::string>;
+using output_ss_t = std::ostringstream;
+using string_iterator_t = std::list<std::string>::iterator;
+using node_iterator_t = std::list<ASTNode*>::iterator;
+
+%}
+
+%{
+#include "ast.h"
+%}
+
+%node ASTNode %abstract %typedef = {
+    int lineNo;
+    %nocreate string_t code = {""};
+}
+
+%node ProgramNode ASTNode = {
+    ast_node_list_t subtypeSection;
+    ast_node_list_t variableSection;
+    ast_node_list_t subprogramSection;
+    ast_node_list_t statements;
+}
+
+%node SubTypeDeclaration ASTNode = {
+    string_t identifier;
+    ASTNode* type;
+}
+
+%node Type ASTNode = {
+    int type;
+    int arraySize;
+    ASTNode* arrayType;
+}
+
+%node VariableDeclaration ASTNode = {
+    ASTNode* type;
+    id_list identifierList;
+}
+
+%node FunctionDeclaration ASTNode = {
+    string_t identifier;
+    ast_node_list_t arguments;
+    ASTNode* type;
+    ast_node_list_t variableSection;
+    ast_node_list_t statements;
+}
+
+%node ProcedureDeclaration ASTNode = {
+    string_t identifier;
+    ast_node_list_t arguments;
+    ast_node_list_t variableSection;
+    ast_node_list_t statements;
+}
+
+%node ArgumentDeclaration ASTNode = {
+    ASTNode* type;
+    string_t identifier;
+}
+
+%node Statement ASTNode %abstract
+
+%node AssignStatement Statement = {
+    ASTNode* lvalue;
+    ASTNode* expr;
+}
+
+%node CallStatement Statement = {
+    ASTNode* call;
+}
+
+%node WriteStatement Statement = {
+    ast_node_list_t arguments;
+}
+
+%node ReadStatement Statement = {
+    ast_node_list_t arguments;
+}
+
+%node IfStatement Statement = {
+    ASTNode* cond;
+    ast_node_list_t tStatements;
+    ast_node_list_t fStatements;
+}
+
+%node ElseIfStatement Statement = {
+    ASTNode* cond;
+    ast_node_list_t statements;
+}
+
+%node ElseStatement Statement = {
+    ast_node_list_t statements;
+}
+
+%node WhileStatement Statement = {
+    ASTNode* condition;
+    ast_node_list_t statements;
+}
+
+%node RepeatStatement Statement = {
+    ast_node_list_t statements;
+    ASTNode* condition;
+}
+
+%node ForStatement Statement = {
+    ASTNode* assign;
+    ASTNode* cond;
+    ast_node_list_t statements;
+}
+
+%node ReturnStatement Statement = {
+    ASTNode* expr;
+}
+
+%node Expression ASTNode %abstract = {
+    %nocreate string_t place = {""};
+}
+
+%node BinaryExpression Expression %abstract = {
+    ASTNode* expr1;
+    ASTNode* expr2;
+}
+
+%node EqualExpr BinaryExpression
+%node NotEqExpr BinaryExpression
+%node LessExpr BinaryExpression
+%node GrtrExpr BinaryExpression
+%node LessEqExpr BinaryExpression
+%node GrtrEqExpr BinaryExpression
+%node AddExpr BinaryExpression
+%node SubExpr BinaryExpression
+%node OrExpr BinaryExpression
+%node MulExpr BinaryExpression
+%node DivExpr BinaryExpression
+%node ModExpr BinaryExpression
+%node AndExpr BinaryExpression
+%node ExponentExpr BinaryExpression
+
+%node NumExpression Expression = {
+    int value;
+}
+
+%node CharExpression Expression = {
+    int value;
+}
+
+%node BoolExpression Expression = {
+    int value;
+}
+
+%node StringExpression Expression = {
+    string_t value;
+}
+
+%node LeftValue Expression = {
+    string_t identifier;
+    ASTNode* index;
+}
+
+%node SubprogramCall Expression = {
+    string_t identifier;
+    ast_node_list_t parameters;
+}
+
+%operation %virtual string_t toString(ASTNode *this)
+%operation %virtual void genCode(ASTNode* this, MemoryHandler &handler)
+
+%operation %virtual bool loadVariableDeclarations(VariableDeclaration *this, bool extraComparison, MemoryHandler &handler, MethodHandler **method)
+
+loadVariableDeclarations(VariableDeclaration){
+    bool loaded = true;
+
+    for (const auto &id : identifierList) {
+        Type* typePtr = static_cast<Type*>(type);
+
+        if (extraComparison) {     
+            int offset;
+            if (typePtr->type == 3) {
+                offset = (*method)->getVarOffset(typePtr->arraySize*4, true);
+            } else {
+                offset = (*method)->getVarOffset(4, false);
+            }
+                            
+            (*method)->registerVar(id, std::make_pair(offset, typePtr->type));
+        } else {
+            handler.registerVariable(id, std::make_pair(typePtr->arraySize, typePtr->type));      
+        }
+    }
+
+    return loaded;
+}
+
+%operation %virtual bool loadVariables(VariableDeclaration *this, MemoryHandler &handler)
+
+loadVariables(VariableDeclaration) {
+    return loadVariableDeclarations(false, handler, nullptr);
+}
+
+%operation %virtual bool loadProcedures(ProcedureDeclaration *this, MemoryHandler &handler)
+
+loadProcedures(ProcedureDeclaration)
+{
+    MethodHandler *methodHandler;
+    bool loaded = true;
+    std::string idLex;
+    idLex = identifier;
+    methodHandler = new MethodHandler(idLex);
+
+
+    if (!arguments.empty()) {
+        int offset = 8;
+            
+        for (const auto& param : arguments) {
+            std::string pIdLex;
+            ArgumentDeclaration *paramNode = static_cast<ArgumentDeclaration*>(param);
+            pIdLex = paramNode->identifier;
+            Type* typePtr = static_cast<Type*>(paramNode->type);
+            methodHandler->registerParam(pIdLex, std::make_pair(offset, typePtr->type));
+            offset += 4;
+        }
+    }
+
+    if (!variableSection.empty()) {
+        for (const auto& var : variableSection) {
+            VariableDeclaration *varDecl = static_cast<VariableDeclaration*>(var);
+            bool loadedVar = varDecl->loadVariableDeclarations(true, handler, &methodHandler);
+            loaded = (!loaded) ? loaded : loadedVar;
+        }
+    }
+
+    handler.registerMethod(methodHandler);
+
+    return loaded;
+}
+
+%operation %virtual bool loadFunctions(FunctionDeclaration *this, MemoryHandler &handler)
+
+loadFunctions(FunctionDeclaration)
+{
+    MethodHandler *methodHandler;
+    bool loaded = true;
+    std::string idLex;
+    idLex = identifier;
+    methodHandler = new MethodHandler(idLex);
+
+
+    if (!arguments.empty()) {
+        int offset = 8;
+            
+        for (const auto& param : arguments) {
+            std::string pIdLex;
+            ArgumentDeclaration *paramNode = static_cast<ArgumentDeclaration*>(param);
+            pIdLex = paramNode->identifier;
+            Type* typePtr = static_cast<Type*>(paramNode->type);
+            methodHandler->registerParam(pIdLex, std::make_pair(offset, typePtr->type));
+            offset += 4;
+        }
+    }
+
+    if (!variableSection.empty()) {
+        for (const auto& var : variableSection) {
+            VariableDeclaration *varDecl = static_cast<VariableDeclaration*>(var);
+            bool loadedVar = varDecl->loadVariableDeclarations(true, handler, &methodHandler);
+            loaded = (!loaded) ? loaded : loadedVar;
+        }
+    }
+
+    handler.registerMethod(methodHandler);
+
+    return loaded;
+}
+
+%include "ast_toString.tc"
+%include "ast_genCode.tc"
