@@ -105,7 +105,6 @@
 %%
 
 input:	                    	program																{
-																										std::cout << $1->toString() << std::endl << std::endl;
 																										($1)->genCode(handler);
 
 																										std::cout << ($1)->code << std::endl;
@@ -137,7 +136,6 @@ program:	              		opt_subtype_definition_section
 																										}
 																													
 
-																										std::cout << handler.getDataSection() << std::endl;
 
 																										$$ = pool.ProgramNodeCreate(lexer.getLineNo(), $1, $2, $3, $6); 
 																										
@@ -235,7 +233,7 @@ statement:						assign																{ $$ = $1; }
 								|"para" assign "hasta" expr "haga" eols				
 								statement_list eols
 								"fin" "para"														{ $$ = pool.ForStatementCreate(lexer.getLineNo(), $2, $4, $7); }
-								|"retorne" expr														{ $$ = pool.ReturnStatementCreate(lexer.getLineNo(), $2); std::cout << $$->toString() << std::endl; }
+								|"retorne" expr														{ $$ = pool.ReturnStatementCreate(lexer.getLineNo(), $2); }
 ;
 
 assign:							lvalue "<-" expr													{ $$ = pool.AssignStatementCreate(lexer.getLineNo(), $1, $3);}

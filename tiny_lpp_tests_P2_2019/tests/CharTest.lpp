@@ -1,0 +1,6 @@
+Caracter x
+
+Inicio
+    x <- 1
+    Escriba x
+Fin

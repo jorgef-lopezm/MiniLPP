@@ -1,0 +1,14 @@
+Entero a, b
+
+Funcion Suma: Entero
+Inicio
+    escriba 1
+Fin
+
+Inicio
+    a <- 567
+    b <- 765
+    a <- 374
+    b <- 473
+Fin
+

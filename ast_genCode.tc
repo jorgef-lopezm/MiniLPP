@@ -89,11 +89,13 @@ genCode(AssignStatement){
     std::ostringstream sscode;
     Expression* exprPtr = static_cast<Expression*>(expr);
     lvalue->genCode(handler);
-    expr->genCode(handler);
-        
-    sscode  << exprPtr->code;
-    sscode << "mov eax, dword[" << exprPtr->place << "]\n";
-   
+    
+    if (!exprPtr->isA(CharExpression_kind)) {
+        expr->genCode(handler);
+        sscode  << exprPtr->code;
+        sscode << "mov eax, dword[" << exprPtr->place << "]\n";
+    }
+
     if(lvalue->isA(LeftValue_kind))
     {
         LeftValue* idExpr = static_cast<LeftValue*>(lvalue);
@@ -116,11 +118,11 @@ genCode(WriteStatement){
         Expression* arg = static_cast<Expression*>(argument);
 
         if(argument->isA(StringExpression_kind))
-            fmt << "%s ";
+            fmt << "%s";
         else if(argument->isA(CharExpression_kind))
-            fmt << "%c ";
+            fmt << "%c";
         else
-            fmt << "%d ";    
+            fmt << "%d";    
     }
 
     arguments.reverse();
